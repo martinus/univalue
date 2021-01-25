@@ -19,10 +19,10 @@ public:
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
     UniValue() { typ = VNULL; }
-    UniValue(UniValue::VType initialType, const std::string& initialStr = "") {
-        typ = initialType;
-        val = initialStr;
-    }
+    UniValue(UniValue::VType initialType) : typ(initialType) {}
+    UniValue(UniValue::VType initialType, const std::string& initialStr) : typ(initialType), val(initialStr) {}
+    UniValue(UniValue::VType initialType, std::string&& initialStr) : typ(initialType), val(std::move(initialStr)) {}
+
     UniValue(uint64_t val_) {
         setInt(val_);
     }
@@ -41,9 +41,11 @@ public:
     UniValue(const std::string& val_) {
         setStr(val_);
     }
+    UniValue(std::string&& val_) {
+        setStr(std::move(val_));
+    }
     UniValue(const char *val_) {
-        std::string s(val_);
-        setStr(s);
+        setStr(std::string(val_));
     }
 
     void clear();
@@ -51,11 +53,13 @@ public:
     bool setNull();
     bool setBool(bool val);
     bool setNumStr(const std::string& val);
+    bool setNumStr(std::string&& val);
     bool setInt(uint64_t val);
     bool setInt(int64_t val);
     bool setInt(int val_) { return setInt((int64_t)val_); }
     bool setFloat(double val);
     bool setStr(const std::string& val);
+    bool setStr(std::string&& val);
     bool setArray();
     bool setObject();
 
@@ -81,68 +85,43 @@ public:
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
 
-    bool push_back(const UniValue& val);
-    bool push_back(const std::string& val_) {
-        UniValue tmpVal(VSTR, val_);
-        return push_back(tmpVal);
+    template<typename Arg>
+    bool push_back(UniValue::VType t, Arg&& arg) {
+        if (typ != VARR)
+            return false;
+        values.emplace_back(t, std::forward<Arg>(arg));
+        return true;
     }
-    bool push_back(const char *val_) {
-        std::string s(val_);
-        return push_back(s);
-    }
-    bool push_back(uint64_t val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(int64_t val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(bool val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(int val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(double val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
+    template<typename Arg>
+    bool push_back(Arg&& arg) {
+        if (typ != VARR)
+            return false;
+        values.emplace_back(std::forward<Arg>(arg));
+        return true;
     }
     bool push_backV(const std::vector<UniValue>& vec);
+    bool push_backV(std::vector<UniValue>&& vec);
 
-    void __pushKV(const std::string& key, const UniValue& val);
-    bool pushKV(const std::string& key, const UniValue& val);
-    bool pushKV(const std::string& key, const std::string& val_) {
-        UniValue tmpVal(VSTR, val_);
-        return pushKV(key, tmpVal);
+    template<typename K, typename V>
+    void __pushKV(K&& key, V&& val) {
+        keys.emplace_back(std::forward<K>(key));
+        values.emplace_back(std::forward<V>(val));
     }
-    bool pushKV(const std::string& key, const char *val_) {
-        std::string _val(val_);
-        return pushKV(key, _val);
-    }
-    bool pushKV(const std::string& key, int64_t val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, uint64_t val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, bool val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, int val_) {
-        UniValue tmpVal((int64_t)val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, double val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
+
+    template<typename K, typename V>
+    bool pushKV(K&& key, V&& val_) {
+        if (typ != VOBJ)
+            return false;
+
+        size_t idx;
+        if (findKey(key, idx))
+            values[idx] = std::forward<V>(val_);
+        else
+            __pushKV(std::forward<K>(key), std::forward<V>(val_));
+        return true;
     }
     bool pushKVs(const UniValue& obj);
+    bool pushKVs(UniValue&& obj);
 
     std::string write(unsigned int prettyIndent = 0,
                       unsigned int indentLevel = 0) const;
@@ -160,6 +139,7 @@ private:
     std::vector<UniValue> values;
 
     bool findKey(const std::string& key, size_t& retIdx) const;
+    void write(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
     void writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
     void writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
 
