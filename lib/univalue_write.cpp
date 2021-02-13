@@ -98,7 +98,8 @@ void UniValue::writeObject(unsigned int prettyIndent, unsigned int indentLevel, 
             indentStr(prettyIndent, indentLevel, s);
         s += '\"';
         json_escape(keys[i], s);
-        s += "\":";
+        s += '"';
+        s += ':';
         if (prettyIndent)
             s += ' ';
         values.at(i).write(prettyIndent, indentLevel + 1, s);
