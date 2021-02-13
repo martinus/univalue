@@ -18,37 +18,44 @@ class UniValue {
 public:
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
-    UniValue() { typ = VNULL; }
+    UniValue() : typ(VNULL) {}
     UniValue(UniValue::VType initialType) : typ(initialType) {}
     UniValue(UniValue::VType initialType, const std::string& initialStr) : typ(initialType), val(initialStr) {}
     UniValue(UniValue::VType initialType, std::string&& initialStr) : typ(initialType), val(std::move(initialStr)) {}
 
-    UniValue(uint64_t val_) {
-        setInt(val_);
-    }
-    UniValue(int64_t val_) {
-        setInt(val_);
-    }
+    UniValue(uint64_t val_) : typ(VNUM), val(std::to_string(val_)) {}
+    UniValue(int64_t val_) : typ(VNUM), val(std::to_string(val_)) {}
     UniValue(bool val_) {
         setBool(val_);
     }
-    UniValue(int val_) {
-        setInt(val_);
-    }
+    UniValue(int val_) : typ(VNUM), val(std::to_string(val_)) {}
     UniValue(double val_) {
         setFloat(val_);
     }
-    UniValue(const std::string& val_) {
-        setStr(val_);
-    }
-    UniValue(std::string&& val_) {
-        setStr(std::move(val_));
-    }
-    UniValue(const char *val_) {
-        setStr(std::string(val_));
-    }
+    UniValue(const std::string& val_) : typ(VSTR), val(val_) {}
+    UniValue(std::string&& val_) : typ(VSTR), val(std::move(val_)) {}
+    UniValue(const char *val_) : typ(VSTR), val(val_) {}
 
     void clear();
+    void reserve(size_t n) {
+        switch (typ) {
+        case VOBJ:
+            keys.reserve(n);
+            values.reserve(n);
+            break;
+
+        case VARR:
+            values.reserve(n);
+            break;
+
+        case VSTR:
+            val.reserve(n);
+            break;
+
+        default:
+            break;
+        }
+    }
 
     bool setNull();
     bool setBool(bool val);

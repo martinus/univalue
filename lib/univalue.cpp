@@ -88,16 +88,18 @@ bool UniValue::setFloat(double val_)
 
 bool UniValue::setStr(const std::string& val_)
 {
-    clear();
     typ = VSTR;
+    keys.clear();
+    values.clear();
     val = val_;
     return true;
 }
 
 bool UniValue::setStr(std::string&& val_)
 {
-    clear();
     typ = VSTR;
+    keys.clear();
+    values.clear();
     val = std::move(val_);
     return true;
 }
