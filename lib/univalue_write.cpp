@@ -9,14 +9,25 @@
 
 static void json_escape(const std::string& inS, std::string& outS)
 {
-    for (unsigned int i = 0; i < inS.size(); i++) {
-        unsigned char ch = inS[i];
-        const char *escStr = escapes[ch];
+    // two passes: first determine the size, then copy all data over.
+    // This is faster than having a single pass, because std::string's += is slow since it has to check the size
+    // every time.
+    size_t s = 0;
+    for (unsigned char ch : inS) {
+        s += escapesLen[ch];
+    }
 
-        if (escStr)
-            outS += escStr;
-        else
-            outS += ch;
+    // now that we know the exact size, prepare the string then directly copy into the data.
+    outS.resize(outS.size() + s);
+    auto* ptr = &outS[outS.size() - s];
+
+    for (unsigned char ch : inS) {
+        auto len = escapesLen[ch];
+        if (len == 1) {
+            *ptr++ = (char)ch;
+        } else {
+            ptr = std::copy(escapes[ch], escapes[ch] + len, ptr);
+        }
     }
 }
 
